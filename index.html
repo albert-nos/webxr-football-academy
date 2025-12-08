@@ -3,79 +3,159 @@
 <head>
   <title>WebXR Football Academy</title>
   <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r161/build/three.min.js"></script> <!-- For extras -->
+  <script src="https://cdn.jsdelivr.net/npm/aframe-extras@7.0.0/dist/aframe-extras.min.js"></script>
   <script src="https://unpkg.com/aframe-physics-system@5.2.1/dist/aframe-physics-system.min.js"></script>
-  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script> <!-- AR.js -->
+  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+  <script src="https://unpkg.com/aframe-particle-system-component@1.1.2/dist/aframe-particle-system-component.min.js"></script>
+  <style>
+    body { margin: 0; font-family: Arial; }
+    #ui { position: absolute; top: 10px; left: 10px; color: white; z-index: 1; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 5px; }
+    button { background: #4CAF50; color: white; border: none; padding: 8px 16px; margin: 5px; border-radius: 5px; cursor: pointer; }
+  </style>
 </head>
 <body>
-  <a-scene 
-    physics="driver: cannon" 
-    background="color: #87CEEB"
-    webxr="requiredFeatures: [local-floor]"
-    arjs="sourceType: webcam; debugUIEnabled: false;">
-    
-    <!-- Assets -->
-    <a-assets>
-      <a-mixin id="goal" geometry="primitive: box; depth: 0.1; height: 2.5; width: 8" material="color: white; transparent: true; opacity: 0.2"></a-mixin>
-      <a-mixin id="cone" geometry="primitive: cylinder; height: 1; radius: 0.1" material="color: orange"></a-mixin>
-    </a-assets>
+  <a-scene physics="driver: cannon; gravity: -9.8" 
+           shadow="cast: true; receive: true" 
+           fog="type: linear; color: #87CEEB; near: 10; far: 50"
+           webxr="requiredFeatures: ['local-floor', 'hand-tracking']"
+           arjs="sourceType: webcam; debugUIEnabled: false"
+           background="color: #87CEEB">
 
-    <!-- Lights & Sky -->
-    <a-entity light="type: ambient; color: #445"></a-entity>
-    <a-entity light="type: directional; color: #fff; intensity: 0.7" position="-1 1 0" rotation="-60 0 0"></a-entity>
-    <a-sky color="#7BC8A4"></a-sky> <!-- Pitch green -->
+    <!-- Stadium Lighting -->
+    <a-entity light="type: ambient; intensity: 0.4; color: #ffffff"></a-entity>
+    <a-entity light="type: directional; color: #ffffff; intensity: 0.8" position="10 20 10" rotation="-45 45 0" castShadow="true"></a-entity>
+    <a-entity light="type: hemisphere; color: #87CEEB; groundColor: #228B22; intensity: 0.6"></a-entity>
 
-    <!-- Pitch -->
-    <a-plane position="0 0 -5" rotation="-90 0 0" width="20" height="30" color="#228B22" shadow="cast: false; receive: true"></a-plane>
+    <!-- Pitch (Grass Texture from three.js - pro look) -->
+    <a-plane static-body position="0 0 0" rotation="-90 0 0" width="40" height="60" 
+             material="src: https://threejs.org/examples/textures/terrain/grasslight-big.jpg; repeat: 10 15; transparent: false" 
+             shadow="receive: true"></a-plane>
 
-    <!-- Goal -->
-    <a-entity position="0 0 -12" scale="1 1 0.5">
-      <a-entity mixin="goal" position="0 1.25 0"></a-entity> <!-- Posts -->
+    <!-- Goal Net (White posts + trigger) -->
+    <a-entity position="0 0 -30">
+      <a-cylinder position="-3.66 1.22 0" radius="0.1" height="2.44" color="white" static-body></a-cylinder>
+      <a-cylinder position="3.66 1.22 0" radius="0.1" height="2.44" color="white" static-body></a-cylinder>
+      <a-cylinder position="0 2.59 0" radius="0.1" height="0.5" color="white" static-body rotation="90 0 0"></a-cylinder>
+      <a-box id="goal-trigger" position="0 1.22 0.25" width="7.32" height="2.44" depth="0.5" material="visible: false" static-body></a-box>
     </a-entity>
 
-    <!-- Cones (Dribble Course) -->
-    <a-entity position="-3 0.5 -2" mixin="cone" scale="0.8 1 0.8"></a-entity>
-    <a-entity position="0 0.5 -4" mixin="cone" scale="0.8 1 0.8"></a-entity>
-    <a-entity position="3 0.5 -2" mixin="cone" scale="0.8 1 0.8"></a-entity>
+    <!-- Spinning Football (Physics + shine) -->
+    <a-entity id="ball" dynamic-body="mass: 0.43; shape: sphere" 
+              geometry="primitive: sphere; radius: 0.11" 
+              position="0 0.11 10"
+              material="color: #ffffff; metalness: 0.1; roughness: 0.8; emissive: #000000; emissiveIntensity: 0.1"
+              shadow="cast: true; receive: true"
+              animation="property: rotation; to: 0 360 0; loop: true; dur: 3000; easing: linear">
+    </a-entity>
 
-    <!-- Kickable Ball (Physics!) -->
-    <a-sphere id="ball" radius="0.11" position="0 0.11 -3" 
-              material="src: #football-texture; color: white; repeat: 5 5"  <!-- Add texture later -->
-              dynamic-body shadow="cast: true"></a-sphere>
+    <!-- Goalkeeper (Dives on shot!) -->
+    <a-cylinder id="keeper" position="0 0 -28" radius="0.4" height="1.8" color="#0000ff" static-body shadow="cast: true">
+      <a-sphere position="0 1.2 0" radius="0.25" color="#ffdbac"></a-sphere> <!-- Head -->
+    </a-cylinder>
 
-    <!-- Camera Rig (Player) -->
-    <a-entity id="rig" movement-controls="constrainToNavMesh: false">
+    <!-- Teammate AI (Runs on pass) -->
+    <a-cylinder id="teammate" position="-5 0 5" radius="0.3" height="1.6" color="#ff0000" static-body shadow="cast: true">
+      <a-sphere position="0 1 0" radius="0.2" color="#ffdbac"></a-sphere>
+    </a-cylinder>
+
+    <!-- Player Rig (WASD + VR hands) -->
+    <a-entity id="rig" movement-controls="speed: 0.2; fly: false" position="0 0 10">
       <a-camera position="0 1.6 0"></a-camera>
+      <a-entity laser-controls="hand: left" raycaster="far: 50; objects: .interactable"></a-entity>
+      <a-entity hand-controls="hand: right" raycaster="far: 50"></a-entity>
     </a-entity>
 
-    <!-- Enter VR Button (Auto on headset) -->
-    <a-entity id="enter-vr" text="value: Tap 'Enter VR' to Start!; align: center; width: 4" 
-              position="0 1.5 -2" geometry="primitive: plane; width: 3; height: 0.5" 
-              material="color: #4CAF50; shader: flat"
-              event-set__enter="_event: click; visible: false"
-              animation__click="property: visible; startEvents: click; to: false">
-      <a-plane src="#enterButtonTexture" position="0 0 0.01" width="3" height="0.5"></a-plane>
-    </a-entity>
+    <!-- Confetti on Goal -->
+    <a-entity id="confetti" particle-system="preset: dust; color: #ffff00,#ff0000,#00ff00,#ffffff; particleCount: 200; velocityValue: 15; velocitySpread: 10; accelerationValue: -5; startSize: 0.1; endSize: 0; loop: false"></a-entity>
+
+    <!-- AR Mini Goal -->
+    <a-marker type="hiro" position="0 0 0">
+      <a-cylinder position="0 0.5 0" radius="0.3" height="1" color="white" scale="0.5 0.5 0.5"></a-cylinder>
+      <a-sphere position="0 0.3 -1" radius="0.05" color="white" dynamic-body scale="0.5 0.5 0.5"></a-sphere>
+    </a-marker>
+
   </a-scene>
 
-  <script>
-    // Kick on click (add force)
-    document.querySelector('#ball').addEventListener('click', () => {
-      const ball = document.querySelector('#ball');
-      ball.body.applyImpulse(new CANNON.Vec3(0, 5, -10), ball.object3D.position); // Kick forward/up
-    });
+  <!-- UI Overlay -->
+  <div id="ui">
+    <div>Score: <span id="score">0</span></div>
+    <button onclick="setMode('dribble')">Dribble</button>
+    <button onclick="setMode('pass')">Pass</button>
+    <button onclick="setMode('shoot')">Shoot</button>
+    <div id="mode">Mode: Dribble</div>
+    <p>Left Click: Action | WASD: Move | Enter VR</p>
+  </div>
 
-    // AR Toggle Button (for phone)
-    AFRAME.registerComponent('ar-toggle', {
-      init: function () {
-        this.el.addEventListener('click', () => {
-          const scene = document.querySelector('a-scene');
-          scene.setAttribute('arjs', { sourceType: 'webcam' });
-          scene.enterVR();
-        });
+  <script>
+    let score = 0; let mode = 'dribble'; let dribbleInterval;
+    const ball = document.querySelector('#ball');
+    const rig = document.querySelector('#rig');
+    const scoreEl = document.getElementById('score');
+    const modeEl = document.getElementById('mode');
+    const confetti = document.querySelector('#confetti');
+
+    // Dribble: Ball follows player
+    function startDribble() {
+      dribbleInterval = setInterval(() => {
+        const dist = ball.object3D.position.distanceTo(rig.object3D.position);
+        if (dist < 1.5) {
+          ball.object3D.position.lerp(new THREE.Vector3(rig.object3D.position.x, 0.11, rig.object3D.position.z - 1), 0.1);
+        }
+      }, 16);
+    }
+
+    function setMode(newMode) {
+      mode = newMode;
+      modeEl.textContent = `Mode: ${newMode.charAt(0).toUpperCase() + newMode.slice(1)}`;
+      if (dribbleInterval) clearInterval(dribbleInterval);
+      if (newMode === 'dribble') startDribble();
+    }
+
+    // Pass/Shoot
+    function kick(power = 15) {
+      const cam = document.querySelector('a-camera');
+      const dir = new THREE.Vector3(0, 0, -1);
+      cam.object3D.getWorldDirection(dir);
+      dir.y += 0.5; // Loft
+      dir.normalize().multiplyScalar(power);
+      ball.body.applyImpulse(new CANNON.Vec3(dir.x, dir.y, dir.z), ball.object3D.position);
+      
+      // Teammate run
+      if (mode === 'pass') {
+        document.querySelector('#teammate').setAttribute('animation__run', 
+          { property: 'position', to: '0 0 -25', dur: 3000, easing: 'easeInOutQuad' });
+      }
+      // Keeper dive
+      if (mode === 'shoot') {
+        const side = ball.object3D.position.x > 0 ? -3 : 3;
+        document.querySelector('#keeper').setAttribute('animation__dive', 
+          { property: 'position', to: `${side} 0 -28`, dur: 800 });
+      }
+    }
+
+    // Events
+    window.addEventListener('click', () => kick(mode === 'shoot' ? 25 : 15));
+    document.addEventListener('contextmenu', e => { e.preventDefault(); kick(20); });
+
+    // Goal!
+    document.querySelector('#goal-trigger').addEventListener('collide', e => {
+      if (e.detail.body.el.id === 'ball') {
+        score++;
+        scoreEl.textContent = score;
+        confetti.setAttribute('visible', true);
+        confetti.emit('particle-system:start');
+        setTimeout(() => { confetti.setAttribute('visible', false); resetBall(); }, 2000);
+        setTimeout(() => document.querySelector('#keeper').setAttribute('position', '0 0 -28'), 1000);
       }
     });
-    // Add <a-box ar-toggle position="0 1 -1" color="blue"></a-box> for AR button
+
+    function resetBall() {
+      ball.setAttribute('position', '0 0.11 10');
+      ball.body.velocity.setZero();
+      ball.body.angularVelocity.setZero();
+    }
+
+    startDribble(); // Default mode
   </script>
 </body>
 </html>
