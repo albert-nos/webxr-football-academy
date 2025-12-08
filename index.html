@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>WebXR Football Academy</title>
+  <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r161/build/three.min.js"></script> <!-- For extras -->
+  <script src="https://unpkg.com/aframe-physics-system@5.2.1/dist/aframe-physics-system.min.js"></script>
+  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script> <!-- AR.js -->
+</head>
+<body>
+  <a-scene 
+    physics="driver: cannon" 
+    background="color: #87CEEB"
+    webxr="requiredFeatures: [local-floor]"
+    arjs="sourceType: webcam; debugUIEnabled: false;">
+    
+    <!-- Assets -->
+    <a-assets>
+      <a-mixin id="goal" geometry="primitive: box; depth: 0.1; height: 2.5; width: 8" material="color: white; transparent: true; opacity: 0.2"></a-mixin>
+      <a-mixin id="cone" geometry="primitive: cylinder; height: 1; radius: 0.1" material="color: orange"></a-mixin>
+    </a-assets>
+
+    <!-- Lights & Sky -->
+    <a-entity light="type: ambient; color: #445"></a-entity>
+    <a-entity light="type: directional; color: #fff; intensity: 0.7" position="-1 1 0" rotation="-60 0 0"></a-entity>
+    <a-sky color="#7BC8A4"></a-sky> <!-- Pitch green -->
+
+    <!-- Pitch -->
+    <a-plane position="0 0 -5" rotation="-90 0 0" width="20" height="30" color="#228B22" shadow="cast: false; receive: true"></a-plane>
+
+    <!-- Goal -->
+    <a-entity position="0 0 -12" scale="1 1 0.5">
+      <a-entity mixin="goal" position="0 1.25 0"></a-entity> <!-- Posts -->
+    </a-entity>
+
+    <!-- Cones (Dribble Course) -->
+    <a-entity position="-3 0.5 -2" mixin="cone" scale="0.8 1 0.8"></a-entity>
+    <a-entity position="0 0.5 -4" mixin="cone" scale="0.8 1 0.8"></a-entity>
+    <a-entity position="3 0.5 -2" mixin="cone" scale="0.8 1 0.8"></a-entity>
+
+    <!-- Kickable Ball (Physics!) -->
+    <a-sphere id="ball" radius="0.11" position="0 0.11 -3" 
+              material="src: #football-texture; color: white; repeat: 5 5"  <!-- Add texture later -->
+              dynamic-body shadow="cast: true"></a-sphere>
+
+    <!-- Camera Rig (Player) -->
+    <a-entity id="rig" movement-controls="constrainToNavMesh: false">
+      <a-camera position="0 1.6 0"></a-camera>
+    </a-entity>
+
+    <!-- Enter VR Button (Auto on headset) -->
+    <a-entity id="enter-vr" text="value: Tap 'Enter VR' to Start!; align: center; width: 4" 
+              position="0 1.5 -2" geometry="primitive: plane; width: 3; height: 0.5" 
+              material="color: #4CAF50; shader: flat"
+              event-set__enter="_event: click; visible: false"
+              animation__click="property: visible; startEvents: click; to: false">
+      <a-plane src="#enterButtonTexture" position="0 0 0.01" width="3" height="0.5"></a-plane>
+    </a-entity>
+  </a-scene>
+
+  <script>
+    // Kick on click (add force)
+    document.querySelector('#ball').addEventListener('click', () => {
+      const ball = document.querySelector('#ball');
+      ball.body.applyImpulse(new CANNON.Vec3(0, 5, -10), ball.object3D.position); // Kick forward/up
+    });
+
+    // AR Toggle Button (for phone)
+    AFRAME.registerComponent('ar-toggle', {
+      init: function () {
+        this.el.addEventListener('click', () => {
+          const scene = document.querySelector('a-scene');
+          scene.setAttribute('arjs', { sourceType: 'webcam' });
+          scene.enterVR();
+        });
+      }
+    });
+    // Add <a-box ar-toggle position="0 1 -1" color="blue"></a-box> for AR button
+  </script>
+</body>
+</html>
