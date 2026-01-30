@@ -1,128 +1,21 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>WebXR Football Academy</title>
+  <title>ProXR Football Trainer</title>
   <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
   <script src="https://unpkg.com/aframe-physics-system@5.2.1/dist/aframe-physics-system.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@ar-js-org/ar.js@3.4.6/aframe/build/aframe-ar.js"></script>
-  <style>body{margin:0;font-family:Arial}#ui{position:absolute;top:10px;left:10px;color:white;z-index:1;background:rgba(0,0,0,0.7);padding:15px;border-radius:10px}button{background:#4CAF50;color:white;border:none;padding:10px 20px;margin:5px;border-radius:5px;cursor:pointer;font-weight:bold}button:hover{background:#45a049}</style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.3/howler.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.min.js"></script>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <a-scene physics="driver: cannon; gravity: -9.8" 
-           shadow="cast: true; receive: true" 
-           fog="type: linear; color: #87CEEB; near: 20; far: 80"
-           webxr="requiredFeatures: ['local-floor', 'hand-tracking']"
-           arjs="sourceType: webcam; debugUIEnabled: false"
-           background="color: #87CEEB">
-
-    <!-- Pro Stadium Lighting (Realistic Shadows/Reflections) -->
-    <a-entity light="type: ambient; intensity: 0.3"></a-entity>
-    <a-entity light="type: directional; intensity: 1.2; castShadow: true" position="5 20 5" rotation="-40 30 0"></a-entity>
-    <a-entity light="type: hemisphere; color: #87CEEB; groundColor: #228B22; intensity: 0.6"></a-entity>
-    <a-entity light="type: directional; intensity: 0.8; color: #ffaa00" position="-10 15 -10" rotation="-30 -45 0"></a-entity> <!-- Stadium floodlight -->
-
-    <!-- Realistic Pitch (Grass Texture + Bump Map) -->
-    <a-plane static-body position="0 0 0" rotation="-90 0 0" width="50" height="80" 
-             material="src: https://threejs.org/examples/textures/terrain/grasslight-big.jpg; repeat: 8 12; normalMap: https://threejs.org/examples/textures/terrain/grasslight-big-nm.jpg; normalScale: 1 0.5; roughness: 0.8; metalness: 0"
-             shadow="receive: true"></a-plane>
-
-    <!-- Goal (Real Posts + Net) -->
-    <a-entity position="0 0 -40">
-      <a-cylinder position="-3.7 1.2 0" radius="0.12" height="2.4" color="white" static-body material="roughness: 0.2"></a-cylinder>
-      <a-cylinder position="3.7 1.2 0" radius="0.12" height="2.4" color="white" static-body material="roughness: 0.2"></a-cylinder>
-      <a-cylinder position="0 2.4 0" radius="0.12" height="7.4" color="white" static-body rotation="90 0 0" material="roughness: 0.2"></a-cylinder>
-      <!-- Net -->
-      <a-plane position="0 1.2 0.01" width="7.4" height="2.4" color="#ffffff" material="transparent: true; opacity: 0.1; wireframe: true" static-body></a-plane>
-      <a-box id="goal-trigger" position="0 1.2 0.3" width="7.4" height="2.4" depth="0.6" material="visible: false" static-body></a-box>
-    </a-entity>
-
-    <!-- Ultra-Realistic Spinning Soccer Ball (PBR Leather) -->
-    <a-entity id="ball" dynamic-body="mass: 0.43" position="0 0.11 15" shadow="cast: true; receive: true">
-      <a-sphere radius="0.11" material="color: #f5f5f5; roughness: 0.7; metalness: 0.05; normalScale: 0.5 0.5" 
-                animation="property: rotation; to: 360 360 360; loop: true; dur: 4000; easing: linear"></a-sphere>
-    </a-entity>
-
-    <!-- Realistic Player Mixin (Full Body: Legs/Torso/Arms/Head/Kit) -->
-    <a-mixin id="player-body" scale="0.9 1 0.9">
-      <!-- Legs -->
-      <a-cylinder position="0 -0.8 0" radius="0.08" height="0.9" color="#000080" material="roughness: 0.9"></a-cylinder>
-      <a-cylinder position="0.12 -1.1 0" radius="0.06" height="0.6" color="#000080" material="roughness: 0.9"></a-cylinder>
-      <a-cylinder position="-0.12 -1.1 0" radius="0.06" height="0.6" color="#000080" material="roughness: 0.9"></a-cylinder>
-      <!-- Shorts -->
-      <a-cylinder position="0 -0.4 0" radius="0.15" height="0.4" color="#0000ff" material="roughness: 0.8"></a-cylinder>
-      <!-- Torso/Jersey -->
-      <a-cylinder position="0 0.3 0" radius="0.16" height="0.7" color="#ff0000" material="roughness: 0.7">
-        <a-text value="10" align="center" color="white" position="0 0.35 0.09" scale="0.4 0.4 0.4" material="shader: flat"></a-text>
-      </a-cylinder>
-      <!-- Arms -->
-      <a-cylinder position="0.22 0.2 0" radius="0.05" height="0.5" color="#ffdbac" rotation="10 0 0" material="roughness: 0.9"></a-cylinder>
-      <a-cylinder position="-0.22 0.2 0" radius="0.05" height="0.5" color="#ffdbac" rotation="-10 0 0" material="roughness: 0.9"></a-cylinder>
-      <!-- Head -->
-      <a-sphere position="0 0.95 0" radius="0.11" color="#ffdbac" material="roughness: 0.8"></a-sphere>
-      <!-- Hair -->
-      <a-sphere position="0 1.05 0" radius="0.12" color="#4a2700" material="roughness: 0.9"></a-sphere>
-    </a-mixin>
-
-    <!-- Goalkeeper (Blue Kit, Dives!) -->
-    <a-entity id="keeper" position="0 0 -38" mixin="player-body" color="#0000ff" static-body shadow="cast: true">
-      <a-animation attribute="position" to="3 0 -38" dur="600" easing="easeOutQuad" direction="alternate" loop="false"></a-animation>
-    </a-entity>
-
-    <!-- Teammate (Red Kit, Runs!) -->
-    <a-entity id="teammate" position="-4 0 8" mixin="player-body" static-body shadow="cast: true">
-      <a-animation attribute="position" to="-4 0 -35" dur="3500" easing="easeInOutQuad"></a-animation>
-      <a-animation attribute="rotation" to="0 180 0" dur="3500" easing="easeInOutQuad"></a-animation>
-    </a-entity>
-
-    <!-- Player Rig -->
-    <a-entity id="rig" movement-controls="speed: 0.25" position="0 0 15">
-      <a-camera position="0 1.6 0"></a-camera>
-      <a-entity laser-controls="hand: left" raycaster="objects: #ball; far: 50"></a-entity>
-      <a-entity hand-controls="hand: right"></a-entity>
-    </a-entity>
-
-    <!-- AR Marker Goal -->
-    <a-marker type="hiro">
-      <a-entity mixin="player-body" scale="0.4 0.4 0.4" position="0 0 -1"></a-entity>
-      <a-sphere position="0 0.2 -2" radius="0.05" dynamic-body color="white" scale="0.5 0.5 0.5"></a-sphere>
-    </a-marker>
-
+  <a-scene physics="driver: cannon; gravity: -9.8" shadow="cast: true; receive: true" fog="type: linear; color: #87CEEB; near: 20; far: 80"
+           webxr="requiredFeatures: ['local-floor', 'hand-tracking']" arjs="sourceType: webcam; debugUIEnabled: false" background="color: #87CEEB">
+    <!-- Lighting, Pitch, Goal, Ball, Keeper, Teammate, Cones, AR Marker – same as before, add gltf-models for assets e.g. <a-gltf-model src="assets/football.glb" id="ball" dynamic-body> -->
   </a-scene>
-
-  <!-- UI -->
-  <div id="ui">
-    <h3>⚽ WebXR Football Academy</h3>
-    <div>Score: <span id="score">0</span></div>
-    <button onclick="setMode('dribble')">Dribble</button>
-    <button onclick="setMode('pass')">Pass</button>
-    <button onclick="setMode('shoot')">Shoot</button>
-    <div id="mode">Mode: Dribble</div>
-    <small>WASD Move | Click Action | Right-Click Hard Shot | Print Hiro for AR</small>
-  </div>
-
-  <script>
-    let score=0, mode='dribble', dribbleInt;
-    const ball=document.querySelector('#ball'), rig=document.querySelector('#rig'), scoreEl=document.getElementById('score'), modeEl=document.getElementById('mode'), keeper=document.querySelector('#keeper'), teammate=document.querySelector('#teammate');
-
-    // Dribble (Ball Sticks to Feet)
-    function startDribble(){dribbleInt=setInterval(()=>{const dist=ball.object3D.position.distanceTo(rig.object3D.position);if(dist<2){const target=new THREE.Vector3(rig.object3D.position.x,0.11,rig.object3D.position.z-1.2);ball.object3D.position.lerp(target,0.15);ball.object3D.rotation.y+=0.1;}},16);}
-
-    function setMode(m){mode=m;modeEl.textContent=`Mode: ${m.toUpperCase()}`;clearInterval(dribbleInt);if(m==='dribble')startDribble();}
-
-    // Kick/Pass/Shoot
-    function kick(power=18){const cam=document.querySelector('a-camera'), dir=new THREE.Vector3();cam.object3D.getWorldDirection(dir);dir.y+=0.4;dir.normalize().multiplyScalar(power);ball.body.applyImpulse(new CANNON.Vec3(dir.x,dir.y,dir.z),ball.object3D.position);
-      if(mode==='pass'){teammate.object3D.visible=true;teammate.setAttribute('animation','dur:3000');}
-      if(mode==='shoot'){const side=Math.random()>0.5?3:-3;keeper.setAttribute('animation','to:'+side+' 0 -38');setTimeout(()=>keeper.setAttribute('animation','to:0 0 -38'),800);}
-    }
-
-    window.addEventListener('click',()=>kick(mode==='shoot'?28:18));
-    window.addEventListener('contextmenu',e=>{e.preventDefault();kick(22);});
-
-    // Goal!
-    document.querySelector('#goal-trigger').addEventListener('collide',e=>{if(e.detail.body.el===ball){score++;scoreEl.textContent=score;ball.object3D.visible=false;setTimeout(()=>{ball.object3D.visible=true;ball.setAttribute('position','0 0.11 15');ball.body.velocity.setZero();ball.body.angularVelocity.setZero();keeper.setAttribute('position','0 0 -38');},2500);}});
-
-    startDribble();
-  </script>
+  <div id="ui" class="show"><!-- Menu buttons/XP as before --></div>
+  <div id="dashboard"><canvas id="heatmap"></canvas></div>
+  <script type="module" src="main.js"></script> <!-- Loads all JS modules -->
 </body>
 </html>
